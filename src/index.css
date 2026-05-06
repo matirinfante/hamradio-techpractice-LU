@@ -188,6 +188,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   transition: all var(--transition);
   margin-top: 50px;
   padding: 10px;
+  color: var(--label);
 }
 .theme-toggle:hover  { background: var(--fill-secondary); transform: scale(1.05); }
 .theme-toggle:active { transform: scale(0.92); }
@@ -508,6 +509,20 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 }
 .cat-pill.active { background: var(--accent); color: white; }
 .cat-pill:active { transform: scale(0.94); }
+
+@media (min-width: 768px) {
+  .cat-scroll {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    justify-content: flex-start;
+    cursor: pointer;
+    align-items: flex-start;  
+    align-content: flex-start;
+  }
+  .cat-scroll::-webkit-scrollbar {
+    display: initial;
+  }
+}
 
 /* ─── Concepts ─── */
 .concept-item {
