@@ -1,16 +1,16 @@
 // src/App.jsx
 import { useState, useEffect } from 'react'
-import StudyTab    from './components/StudyTab.jsx'
+import StudyTab from './components/StudyTab.jsx'
 import PracticeTab from './components/PracticeTab.jsx'
-import ExamTab     from './components/ExamTab.jsx'
-import HistoryTab  from './components/HistoryTab.jsx'
+import ExamTab from './components/ExamTab.jsx'
+import HistoryTab from './components/HistoryTab.jsx'
 import { useHistory } from './hooks/useHistory.js'
 
 const TABS = [
-  { id: 'study',    label: 'Estudiar',  icon: '📚' },
+  { id: 'study', label: 'Estudiar', icon: '📚' },
   { id: 'practice', label: 'Practicar', icon: '🎯' },
-  { id: 'exam',     label: 'Simulacro', icon: '⚡' },
-  { id: 'history',  label: 'Historial', icon: '📊' },
+  { id: 'exam', label: 'Simulacro', icon: '⚡' },
+  { id: 'history', label: 'Historial', icon: '📊' },
 ]
 
 function useTheme() {
@@ -76,19 +76,21 @@ export default function App() {
         </nav>
 
         {/* Content */}
-        {tab === 'study'    && <StudyTab />}
+        {tab === 'study' && <StudyTab />}
         {tab === 'practice' && <PracticeTab questionStats={stats.byQuestion} />}
-        {tab === 'exam'     && (
+        {tab === 'exam' && (
           <ExamTab
             onSessionComplete={handleExamComplete}
             lastSession={stats.lastSession}
           />
         )}
-        {tab === 'history'  && (
+        {tab === 'history' && (
           <HistoryTab history={history} loading={loading} stats={stats} />
         )}
       </div>
-
+      <footer className="app-footer">
+        © {new Date().getFullYear()} 🇦🇷🧉 · Made with ❤️ on React
+      </footer>
       {/* Mobile nav — fixed bottom (visible <768px) */}
       <nav className="tab-bar tab-bar--mobile" role="tablist">
         {navItems}
