@@ -9,8 +9,8 @@ import { useHistory } from './hooks/useHistory.js'
 const TABS = [
   { id: 'study',    label: 'Estudiar',  icon: '📚' },
   { id: 'practice', label: 'Practicar', icon: '🎯' },
-  { id: 'exam',     label: 'Examen',    icon: '⚡' },
-  { id: 'history',  label: 'Progreso',  icon: '📊' },
+  { id: 'exam',     label: 'Simulacro', icon: '⚡' },
+  { id: 'history',  label: 'Historial', icon: '📊' },
 ]
 
 function useTheme() {
@@ -66,7 +66,7 @@ export default function App() {
             onClick={toggle}
             aria-label={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
           >
-            {theme === 'dark' ? '☀️' : '🌙'}
+            {theme === 'dark' ? 'Modo Claro ☀️' : 'Modo Oscuro 🌙'}
           </button>
         </header>
 
