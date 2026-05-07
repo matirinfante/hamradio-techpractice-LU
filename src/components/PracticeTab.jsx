@@ -2,8 +2,7 @@
 import { useState, useMemo, useCallback } from 'react'
 import { QUESTIONS, CATEGORIES } from '../data/questions.js'
 import { REG_QUESTIONS, REG_CATEGORIES } from '../data/reg-questions.js'
-
-const LETTERS = ['A', 'B', 'C', 'D', 'E']
+import QuestionCard from './QuestionCard.jsx'
 
 function shuffle(arr) {
   const a = [...arr]
@@ -14,98 +13,65 @@ function shuffle(arr) {
   return a
 }
 
-function QuestionCard({ question, onAnswer }) {
-  const [chosen, setChosen] = useState(null)
-
-  function handleAnswer(idx) {
-    if (chosen !== null) return
-    setChosen(idx)
-    onAnswer?.(idx, idx === question.ans)
-  }
-
-  return (
-    <div className="q-card">
-      <div className="q-meta">
-        <span className="q-badge">{question.cat}</span>
-        <span className="q-num">#{question.id}</span>
-      </div>
-      <p className="q-text">{question.q}</p>
-      <div className="options-list">
-        {question.opts.map((opt, i) => {
-          let cls = 'option-btn'
-          if (chosen !== null) {
-            if (i === question.ans) cls += ' correct'
-            else if (i === chosen) cls += ' wrong'
-          }
-          return (
-            <button key={i} className={cls} onClick={() => handleAnswer(i)} disabled={chosen !== null}>
-              <span className="option-letter">{LETTERS[i]}</span>
-              <span className="option-text">{opt}</span>
-            </button>
-          )
-        })}
-      </div>
-      {chosen !== null && (
-        <div className="explanation-box">
-          <span className="explanation-title">💡 Explicación</span>
-          {question.exp}
-        </div>
-      )}
-    </div>
-  )
-}
-
 export default function PracticeTab({ questionStats = {} }) {
-  const [bank, setBank]         = useState('tecnica')       // 'tecnica' | 'reglamentacion'
+  const [bank, setBank]         = useState('tecnica')
   const [cat, setCat]           = useState('Todas')
   const [idx, setIdx]           = useState(0)
   const [ok, setOk]             = useState(0)
   const [err, setErr]           = useState(0)
-  const [queueKey, setQueueKey] = useState(0)               // force re-shuffle
+  const [queueSeed, setQueueSeed] = useState(0)
+  const [answered, setAnswered]   = useState(false)
 
-  const allQuestions = bank === 'tecnica' ? QUESTIONS : REG_QUESTIONS
-  const allCategories = bank === 'tecnica' ? CATEGORIES : REG_CATEGORIES
-  const accentColor   = bank === 'tecnica' ? 'var(--accent)' : 'var(--green)'
+  const allQ   = bank === 'tecnica' ? QUESTIONS : REG_QUESTIONS
+  const allCat = bank === 'tecnica' ? CATEGORIES : REG_CATEGORIES
+  const accentColor = bank === 'tecnica' ? 'var(--accent)' : 'var(--green)'
 
   const filtered = useMemo(
-    () => cat === 'Todas' ? allQuestions : allQuestions.filter(q => q.cat === cat),
-    [allQuestions, cat]
+    () => cat === 'Todas' ? allQ : allQ.filter(q => q.cat === cat),
+    [allQ, cat]
   )
-
-  const queue = useMemo(() => shuffle(filtered), [filtered, queueKey])
+  const queue = useMemo(() => shuffle(filtered), [filtered, queueSeed])
 
   const question = queue[idx % queue.length]
   const total    = ok + err
   const pct      = total ? Math.round(ok / total * 100) : null
 
+  const multiCount = useMemo(
+    () => filtered.filter(q => Array.isArray(q.ans)).length,
+    [filtered]
+  )
+
   function switchBank(b) {
-    setBank(b); setCat('Todas'); setIdx(0); setOk(0); setErr(0); setQueueKey(k => k + 1)
+    setBank(b); setCat('Todas'); resetStats()
   }
 
   function changeCat(c) {
-    setCat(c); setIdx(0); setOk(0); setErr(0); setQueueKey(k => k + 1)
+    setCat(c); resetStats()
+  }
+
+  function resetStats() {
+    setIdx(0); setOk(0); setErr(0); setAnswered(false); setQueueSeed(s => s + 1)
   }
 
   const handleAnswer = useCallback((chosen, correct) => {
+    setAnswered(true)
     correct ? setOk(o => o + 1) : setErr(e => e + 1)
   }, [])
 
   function next() {
-    setIdx(i => {
-      const next = i + 1
-      if (next >= queue.length) { setQueueKey(k => k + 1); return 0 }
-      return next
-    })
+    const nextIdx = idx + 1
+    if (nextIdx >= queue.length) {
+      setQueueSeed(s => s + 1)
+      setIdx(0)
+    } else {
+      setIdx(nextIdx)
+    }
+    setAnswered(false)
   }
 
   function prev() {
-    if (idx > 0) setIdx(i => i - 1)
+    if (idx > 0) { setIdx(i => i - 1); setAnswered(false) }
   }
-
-  // Weak questions from history
-  const weakIds = Object.entries(questionStats)
-    .filter(([, v]) => v.fail > v.ok)
-    .map(([id]) => id)
 
   const progress = queue.length > 0 ? ((idx % queue.length) / queue.length) * 100 : 0
 
@@ -113,37 +79,43 @@ export default function PracticeTab({ questionStats = {} }) {
     <div>
       {/* Bank switcher */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
-        <button
-          onClick={() => switchBank('tecnica')}
-          style={{
-            padding: '11px 16px', borderRadius: 'var(--radius-md)',
-            border: bank === 'tecnica' ? '1.5px solid var(--accent)' : '1.5px solid var(--separator)',
-            background: bank === 'tecnica' ? 'var(--accent-bg)' : 'var(--bg-elevated)',
-            cursor: 'pointer', transition: 'all 0.2s',
-            fontSize: 14, fontWeight: 700,
-            color: bank === 'tecnica' ? 'var(--accent)' : 'var(--label-secondary)',
-            fontFamily: 'var(--font-ui)',
-            display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center',
-          }}
-        >
-          🔧 Técnica
-        </button>
-        <button
-          onClick={() => switchBank('reglamentacion')}
-          style={{
-            padding: '11px 16px', borderRadius: 'var(--radius-md)',
-            border: bank === 'reglamentacion' ? '1.5px solid var(--green)' : '1.5px solid var(--separator)',
-            background: bank === 'reglamentacion' ? 'var(--green-bg)' : 'var(--bg-elevated)',
-            cursor: 'pointer', transition: 'all 0.2s',
-            fontSize: 14, fontWeight: 700,
-            color: bank === 'reglamentacion' ? 'var(--green)' : 'var(--label-secondary)',
-            fontFamily: 'var(--font-ui)',
-            display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center',
-          }}
-        >
-          📋 Reglamentación
-        </button>
+        {[
+          { id: 'tecnica', label: 'Técnica', icon: '🔧', color: 'var(--accent)', bg: 'var(--accent-bg)', count: QUESTIONS.length },
+          { id: 'reglamentacion', label: 'Reglamentación', icon: '📋', color: 'var(--green)', bg: 'var(--green-bg)', count: REG_QUESTIONS.length },
+        ].map(b => (
+          <button
+            key={b.id}
+            onClick={() => switchBank(b.id)}
+            style={{
+              padding: '11px 16px', borderRadius: 'var(--radius-md)',
+              border: bank === b.id ? `1.5px solid ${b.color}` : '1.5px solid var(--separator)',
+              background: bank === b.id ? b.bg : 'var(--bg-elevated)',
+              cursor: 'pointer', transition: 'all 0.2s',
+              fontSize: 14, fontWeight: 700,
+              color: bank === b.id ? b.color : 'var(--label-secondary)',
+              fontFamily: 'var(--font-ui)',
+              display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center',
+            }}
+          >
+            {b.icon} {b.label}
+            <span style={{ fontSize: 11, fontWeight: 400, fontFamily: 'var(--font-mono)', opacity: 0.7 }}>
+              ({b.count})
+            </span>
+          </button>
+        ))}
       </div>
+
+      {/* Multi-choice notice */}
+      {multiCount > 0 && (
+        <div style={{
+          background: 'var(--orange-bg)', border: '1px solid var(--orange)',
+          borderRadius: 'var(--radius-md)', padding: '9px 14px', marginBottom: 12,
+          fontSize: 13, color: 'var(--orange)', display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <span>⚠️</span>
+          <span><strong>{multiCount}</strong> pregunta{multiCount !== 1 ? 's' : ''} con respuesta múltiple en este banco</span>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="stats-row">
@@ -160,7 +132,7 @@ export default function PracticeTab({ questionStats = {} }) {
 
       {/* Category filter */}
       <div className="cat-scroll">
-        {allCategories.map(c => (
+        {allCat.map(c => (
           <button
             key={c}
             className={`cat-pill ${cat === c ? 'active' : ''}`}
@@ -172,21 +144,7 @@ export default function PracticeTab({ questionStats = {} }) {
         ))}
       </div>
 
-      {/* Weak questions shortcut (only for técnica) */}
-      {bank === 'tecnica' && weakIds.length > 0 && (
-        <button
-          className="btn btn-ghost mt-8"
-          style={{ width: '100%', justifyContent: 'center', marginBottom: 12 }}
-          onClick={() => {
-            const weak = shuffle(allQuestions.filter(q => weakIds.includes(String(q.id))))
-            setQueueKey(k => k + 1); setIdx(0); setOk(0); setErr(0)
-          }}
-        >
-          ⚠️ Repasar {weakIds.length} pregunta{weakIds.length !== 1 ? 's' : ''} débil{weakIds.length !== 1 ? 'es' : ''}
-        </button>
-      )}
-
-      {/* Progress bar */}
+      {/* Progress */}
       <div className="progress-wrap">
         <div
           className="progress-fill"
@@ -202,16 +160,20 @@ export default function PracticeTab({ questionStats = {} }) {
       {/* Question */}
       {question && (
         <QuestionCard
-          key={`${bank}-${idx}-${question.id}`}
+          key={`${bank}-${idx}-${question.id}-${queueSeed}`}
           question={question}
           onAnswer={handleAnswer}
         />
       )}
 
       {/* Nav */}
-      <div className="nav-row">
-        <button className="btn btn-ghost" onClick={prev} disabled={idx === 0}>← Anterior</button>
-        <span className="nav-center">{(idx % queue.length) + 1} / {queue.length}</span>
+      <div className="nav-row" style={{ marginTop: 16 }}>
+        <button className="btn btn-ghost" onClick={prev} disabled={idx === 0}>
+          ← Anterior
+        </button>
+        <span className="nav-center">
+          {(idx % queue.length) + 1} / {queue.length}
+        </span>
         <button
           className="btn btn-primary"
           style={bank === 'reglamentacion' ? { background: 'var(--green)' } : {}}
