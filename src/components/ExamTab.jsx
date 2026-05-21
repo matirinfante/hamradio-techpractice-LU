@@ -5,8 +5,8 @@ import { REG_QUESTIONS } from '../data/reg-questions.js'
 import ExamModeSelector from './ExamModeSelector.jsx'
 
 const LETTERS    = ['a', 'b', 'c', 'd', 'e', 'f', 'g']
-const EXAM_SIZE  = 15
-const PASS_SCORE = 11
+const EXAM_SIZE  = 20
+const PASS_SCORE = 14
 const TIMER_SECS = 6
 
 function shuffle(arr) {

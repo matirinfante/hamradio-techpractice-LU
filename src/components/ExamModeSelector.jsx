@@ -7,7 +7,7 @@ export default function ExamModeSelector({ onSelect }) {
           <div className="exam-start-icon" style={{ fontSize: 52 }}>⚡</div>
           <div className="exam-start-title">Simulacro de Examen</div>
           <div className="exam-start-desc">¿Qué parte querés practicar?</div>
-          <div className="exam-start-goal">15 preguntas · 11/15 para aprobar (73%)</div>
+          <div className="exam-start-goal">20 preguntas · 14/20 para aprobar (70%)</div>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -81,7 +81,7 @@ export default function ExamModeSelector({ onSelect }) {
                 Examen Completo (ambas partes)
               </div>
               <div style={{ fontSize: 13, color: 'var(--label-secondary)', marginTop: 2 }}>
-                15 preguntas técnicas + 15 de reglamentación — 2 exámenes seguidos
+                20 preguntas técnicas + 20 de reglamentación — 2 exámenes seguidos
               </div>
             </div>
           </button>

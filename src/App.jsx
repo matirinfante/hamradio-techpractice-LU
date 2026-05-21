@@ -81,7 +81,7 @@ export default function App() {
                 </div>
                 <div className="sidebar-stat-divider" />
                 <div className="sidebar-stat">
-                  <span className="sidebar-stat-val" style={{ color: stats.avgScore >= 73 ? 'var(--green)' : 'var(--red)' }}>
+                  <span className="sidebar-stat-val" style={{ color: stats.avgScore >= 70 ? 'var(--green)' : 'var(--red)' }}>
                     {stats.avgScore !== null ? `${stats.avgScore}%` : '—'}
                   </span>
                   <span className="sidebar-stat-lbl">Promedio</span>

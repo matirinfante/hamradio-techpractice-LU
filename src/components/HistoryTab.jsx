@@ -45,7 +45,7 @@ function TrendChart({ trend }) {
         justifyContent: 'space-between',
         alignItems: 'center',
       }}>
-        <span style={{ fontSize: 11, color: 'var(--label-tertiary)' }}>— mínimo 73%</span>
+        <span style={{ fontSize: 11, color: 'var(--label-tertiary)' }}>— mínimo 70%</span>
         <span style={{
           fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-mono)',
           color: trend[trend.length - 1]?.passed ? 'var(--green)' : 'var(--red)'
@@ -69,7 +69,7 @@ function SummaryCards({ stats }) {
         <span className="stat-label">Aprobados</span>
       </div>
       <div className="stat-card">
-        <span className={`stat-value ${stats.avgScore >= 73 ? 'green' : stats.avgScore !== null ? 'red' : ''}`}>
+        <span className={`stat-value ${stats.avgScore >= 70 ? 'green' : stats.avgScore !== null ? 'red' : ''}`}>
           {stats.avgScore !== null ? `${stats.avgScore}%` : '—'}
         </span>
         <span className="stat-label">Prom. general</span>
