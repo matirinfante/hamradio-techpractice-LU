@@ -4,10 +4,11 @@ import { QUESTIONS } from '../data/questions.js'
 import { REG_QUESTIONS } from '../data/reg-questions.js'
 import ExamModeSelector from './ExamModeSelector.jsx'
 
-const LETTERS    = ['a', 'b', 'c', 'd', 'e', 'f', 'g']
-const EXAM_SIZE  = 20
-const PASS_SCORE = 14
-const TIMER_SECS = 6
+const LETTERS         = ['a', 'b', 'c', 'd', 'e', 'f', 'g']
+const EXAM_SIZE       = 20
+const PASS_SCORE      = 14
+const TIMER_SECS      = 6
+const EXAM_TIME_LIMIT = 45 * 60  // 2700 seconds
 
 function shuffle(arr) {
   const a = [...arr]
@@ -25,6 +26,12 @@ function isCorrectAnswer(question, chosen) {
     return [...chosen].sort().every((v, i) => v === [...ans].sort()[i])
   }
   return chosen.length === 1 && chosen[0] === ans
+}
+
+function formatCountdown(secs) {
+  const m = Math.floor(secs / 60)
+  const s = secs % 60
+  return `${m}:${s.toString().padStart(2, '0')}`
 }
 
 // ── Single Exam Question ──────────────────────────────────────
@@ -190,16 +197,38 @@ function ExamQuestion({ question, onDone }) {
   )
 }
 
-// ── Exam Block (15 questions from one pool) ───────────────────
-function ExamBlock({ pool, label, color, onComplete }) {
+// ── Exam Block (20 questions from one pool) ───────────────────
+function ExamBlock({ pool, label, color, onComplete, timeUp = false, timeLeft = null }) {
   const [questions] = useState(() => shuffle(pool).slice(0, EXAM_SIZE))
-  const [idx, setIdx]     = useState(0)
+  const [idx, setIdx]         = useState(0)
   const [answers, setAnswers] = useState([])
+
+  // Refs to access current values inside effects without stale closures
+  const questionsRef  = useRef(questions)
+  const answersRef    = useRef([])
+  const onCompleteRef = useRef(onComplete)
+  useEffect(() => { answersRef.current = answers }, [answers])
+  useEffect(() => { onCompleteRef.current = onComplete }, [onComplete])
+
+  // Force-complete when time runs out
+  useEffect(() => {
+    if (!timeUp) return
+    const filled = [...answersRef.current]
+    const qs     = questionsRef.current
+    for (let i = filled.length; i < EXAM_SIZE; i++) {
+      filled.push({ qId: qs[i].id, chosen: [], correct: false })
+    }
+    const finalOk = filled.filter(a => a.correct).length
+    onCompleteRef.current({ ok: finalOk, total: EXAM_SIZE, answers: filled, questions: qs, label, color })
+  }, [timeUp]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const ok       = answers.filter(a => a.correct).length
   const errCount = answers.filter(a => !a.correct).length
   const progress = ((idx + 1) / EXAM_SIZE) * 100
   const q        = questions[idx]
+
+  const isLow      = timeLeft !== null && timeLeft <= 300
+  const isCritical = timeLeft !== null && timeLeft <= 60
 
   function handleDone(chosen, correct, advance) {
     // Record answer if not already recorded for this idx
@@ -225,6 +254,31 @@ function ExamBlock({ pool, label, color, onComplete }) {
 
   return (
     <div>
+      {/* Countdown timer — only shown for timed (full) exam */}
+      {timeLeft !== null && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: isCritical ? 'var(--red-bg)' : isLow ? 'var(--orange-bg)' : 'var(--fill-tertiary)',
+          border: `1px solid ${isCritical ? 'var(--red)' : isLow ? 'var(--orange)' : 'transparent'}`,
+          borderRadius: 'var(--radius-md)', padding: '10px 14px', marginBottom: 14,
+          transition: 'background 0.4s, border-color 0.4s',
+        }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 18 }}>{isCritical ? '🚨' : isLow ? '⚠️' : '⏱'}</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: isCritical ? 'var(--red)' : isLow ? 'var(--orange)' : 'var(--label-secondary)' }}>
+              Tiempo restante
+            </span>
+          </span>
+          <span style={{
+            fontSize: 22, fontWeight: 800, fontFamily: 'var(--font-mono)',
+            color: isCritical ? 'var(--red)' : isLow ? 'var(--orange)' : 'var(--label-primary)',
+            letterSpacing: 1,
+          }}>
+            {formatCountdown(timeLeft)}
+          </span>
+        </div>
+      )}
+
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10,
         background: 'var(--fill-tertiary)', borderRadius: 'var(--radius-md)',
@@ -257,11 +311,23 @@ function ExamBlock({ pool, label, color, onComplete }) {
 }
 
 // ── Result Screen ─────────────────────────────────────────────
-function ResultScreen({ results, onRestart }) {
+function ResultScreen({ results, onRestart, timeRanOut = false }) {
   const allPassed = results.every(r => r.ok >= PASS_SCORE)
 
   return (
     <div>
+      {timeRanOut && (
+        <div style={{
+          background: 'var(--red-bg)', border: '1px solid var(--red)',
+          borderRadius: 'var(--radius-md)', padding: '12px 16px', marginBottom: 14,
+          fontSize: 14, color: 'var(--red)', fontWeight: 600,
+          display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <span style={{ fontSize: 18 }}>⏰</span>
+          Se acabó el tiempo — el examen finalizó automáticamente. Las preguntas no respondidas se contaron como incorrectas.
+        </div>
+      )}
+
       {results.length === 2 && (
         <div className="result-hero" style={{ marginBottom: 16 }}>
           <div className="result-emoji">{allPassed ? '🏆' : '📖'}</div>
@@ -308,7 +374,9 @@ function ResultScreen({ results, onRestart }) {
                     <div key={qId} className="review-item">
                       <div className="review-q-text">{q.q}</div>
                       <div className="review-wrong">
-                        ✗ Tu respuesta: {chosen.map(i => `${LETTERS[i]}) ${q.opts[i]}`).join(' + ')}
+                        {chosen.length === 0
+                          ? '✗ Sin respuesta'
+                          : `✗ Tu respuesta: ${chosen.map(i => `${LETTERS[i]}) ${q.opts[i]}`).join(' + ')}`}
                       </div>
                       <div className="review-correct">
                         ✓ Correcta: {correctSet.map(i => `${LETTERS[i]}) ${q.opts[i]}`).join(' + ')}
@@ -335,17 +403,60 @@ export default function ExamTab({ onSessionComplete, lastSession }) {
   const [phase, setPhase]     = useState('select')
   const [mode, setMode]       = useState(null)
   const [results, setResults] = useState([])
+  const [timeLeft, setTimeLeft]     = useState(EXAM_TIME_LIMIT)
+  const [timeUp, setTimeUp]         = useState(false)
+  const [timeRanOut, setTimeRanOut] = useState(false)
 
-  function handleModeSelect(m) { setMode(m); setResults([]); setPhase('exam1') }
+  const timeUpRef  = useRef(false)
+  const timerRef   = useRef(null)
+
+  useEffect(() => () => clearInterval(timerRef.current), [])
+
+  function startExamTimer() {
+    clearInterval(timerRef.current)
+    setTimeLeft(EXAM_TIME_LIMIT)
+    setTimeUp(false)
+    timeUpRef.current = false
+    timerRef.current = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current)
+          setTimeUp(true)
+          timeUpRef.current = true
+          setTimeRanOut(true)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+  }
+
+  function stopExamTimer() {
+    clearInterval(timerRef.current)
+  }
+
+  function handleModeSelect(m) {
+    setMode(m)
+    setResults([])
+    setTimeRanOut(false)
+    if (m === 'ambas') startExamTimer()
+    setPhase('exam1')
+  }
 
   function handleExam1Complete(result) {
-    if (mode === 'ambas') { setResults([result]); setPhase('exam2') }
-    else finalize([result])
+    // If time ran out during exam1, skip directly to result (no exam2)
+    if (mode === 'ambas' && !timeUpRef.current) {
+      setResults([result])
+      setPhase('exam2')
+    } else {
+      finalize([result])
+    }
   }
 
   function handleExam2Complete(result) { finalize([...results, result]) }
 
   function finalize(allResults) {
+    stopExamTimer()
     setResults(allResults)
     onSessionComplete?.({
       mode,
@@ -358,15 +469,35 @@ export default function ExamTab({ onSessionComplete, lastSession }) {
     setPhase('result')
   }
 
-  function restart() { setPhase('select'); setMode(null); setResults([]) }
+  function restart() {
+    stopExamTimer()
+    setTimeUp(false)
+    timeUpRef.current = false
+    setTimeRanOut(false)
+    setPhase('select')
+    setMode(null)
+    setResults([])
+  }
 
   const pool1  = mode === 'reglamentacion' ? REG_QUESTIONS : QUESTIONS
   const label1 = mode === 'reglamentacion' ? 'Reglamentación y Ética' : 'Parte Técnica'
   const color1 = mode === 'reglamentacion' ? 'var(--green)' : 'var(--accent)'
 
+  const examTimeLeft = mode === 'ambas' ? timeLeft : null
+
   if (phase === 'select') return <ExamModeSelector onSelect={handleModeSelect} lastSession={lastSession} />
 
-  if (phase === 'exam1') return <ExamBlock key="e1" pool={pool1} label={label1} color={color1} onComplete={handleExam1Complete} />
+  if (phase === 'exam1') return (
+    <ExamBlock
+      key="e1"
+      pool={pool1}
+      label={label1}
+      color={color1}
+      onComplete={handleExam1Complete}
+      timeUp={timeUp}
+      timeLeft={examTimeLeft}
+    />
+  )
 
   if (phase === 'exam2') return (
     <div>
@@ -377,11 +508,21 @@ export default function ExamTab({ onSessionComplete, lastSession }) {
       }}>
         Técnica: {results[0]?.ok}/{results[0]?.total} {results[0]?.ok >= PASS_SCORE ? '✓ Aprobado' : '✗ Desaprobado'} · Ahora: Reglamentación y Ética →
       </div>
-      <ExamBlock key="e2" pool={REG_QUESTIONS} label="Reglamentación y Ética" color="var(--green)" onComplete={handleExam2Complete} />
+      <ExamBlock
+        key="e2"
+        pool={REG_QUESTIONS}
+        label="Reglamentación y Ética"
+        color="var(--green)"
+        onComplete={handleExam2Complete}
+        timeUp={timeUp}
+        timeLeft={examTimeLeft}
+      />
     </div>
   )
 
-  if (phase === 'result') return <ResultScreen results={results} onRestart={restart} />
+  if (phase === 'result') return (
+    <ResultScreen results={results} onRestart={restart} timeRanOut={timeRanOut} />
+  )
 
   return null
 }
